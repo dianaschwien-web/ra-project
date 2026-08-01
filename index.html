@@ -131,7 +131,7 @@
                     <div class="flex flex-wrap gap-2 mb-2">
 
     <button
-        onclick="document.getElementById('chatInput').value='Summarize expenditures by category'; sendMessage();"
+       onclick="document.getElementById('chatInput').value='Summarize expenditures by category'"
         class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg">
         Category Summary
     </button>
@@ -521,7 +521,10 @@ if (!response.ok) {
     );
 }
 
-                const aiText = data.candidates[0].content.parts[0].text;
+               const aiText =
+    data.candidates?.[0]?.content?.parts?.[0]?.text ||
+    "No response returned from Gemini.";
+`
                 
                 removeLoading();
                 appendMessage('model', aiText);
