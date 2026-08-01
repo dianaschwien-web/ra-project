@@ -89,11 +89,12 @@
                     </table>
                 </div>
             </div>
-       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
     <div class="flex justify-between items-center mb-2">
         <h2 class="text-sm font-semibold text-slate-700">
             Executive Budget Summary
         </h2>
+
         <button id="generateSummaryBtn"
             onclick="generateExecutiveSummary()"
             class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1 rounded-lg disabled:opacity-50"
@@ -126,6 +127,7 @@
                     </div>
                 </div>
         
+               <div class="flex items-center space-x-2">
                 <div class="p-3 bg-white border-t border-slate-200 shrink-0">
                     <div class="flex items-center space-x-2">
                         <input type="text" id="chatInput" placeholder="Ask a question about your data..." disabled class="flex-grow px-4 py-2 bg-slate-100 border border-slate-200 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition disabled:opacity-50 disabled:cursor-not-allowed" onkeypress="handleEnter(event)">
@@ -139,7 +141,27 @@
         </div>
         </div>
     </div>
+<div class="flex flex-wrap gap-2 mb-2">
 
+    <button
+        onclick="document.getElementById('chatInput').value='Summarize expenditures by category'; sendMessage();"
+        class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg">
+        Category Summary
+    </button>
+
+    <button
+        onclick="document.getElementById('chatInput').value='Identify transactions greater than $5000'; sendMessage();"
+        class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg">
+        Large Transactions
+    </button>
+
+    <button
+        onclick="document.getElementById('chatInput').value='Provide a budget risk assessment'; sendMessage();"
+        class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg">
+        Risk Assessment
+    </button>
+
+</div>
     <script>
         // Global State
         let parsedCSVData = ""; // Holds the stringified CSV data for the AI prompt
@@ -319,7 +341,7 @@ async function generateExecutiveSummary() {
     const apiKey = document.getElementById('apiKey').value.trim();
 
     if (!apiKey) {
-        alert("Please enter your Gemini API key.");
+        alert("Please enter your Gemini API key first.");
         return;
     }
 
@@ -332,32 +354,44 @@ async function generateExecutiveSummary() {
         document.getElementById('summaryContainer');
 
     summaryContainer.innerHTML =
-        '<span class="text-slate-400">Generating summary...</span>';
+        '<span class="text-slate-500">Generating summary...</span>';
 
     try {
 
         const url =
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
         const payload = {
             contents: [{
+                role: "user",
                 parts: [{
                     text: `
-Analyze this spreadsheet and provide a concise executive summary.
+You are a Senior Research Administrator and Financial Analyst.
+
+Analyze this spreadsheet and provide:
+
+• Total records reviewed
+• Estimated total expenditures
+• Largest transactions
+• Top spending categories
+• Potential high-risk transactions
+• Budget observations
+• Compliance considerations
+• Recommended follow-up actions
+
+Format as:
+
+## Executive Summary
+
+## Key Findings
+
+## Risks
+
+## Recommendations
 
 Spreadsheet:
+
 ${parsedCSVData}
-
-Return:
-
-1. Total records
-2. Total expenditures
-3. Largest transaction
-4. Top spending categories
-5. Potential unusual spending
-6. Overall financial assessment
-
-Use bullet points.
 `
                 }]
             }],
@@ -376,24 +410,29 @@ Use bullet points.
 
         const data = await response.json();
 
+        console.log("Summary Response:", data);
+
         if (!response.ok) {
             throw new Error(
-                data.error?.message || "Summary generation failed."
+                data.error?.message ||
+                JSON.stringify(data) ||
+                "Summary generation failed."
             );
         }
 
         const summary =
-            data.candidates[0].content.parts[0].text;
+            data.candidates?.[0]?.content?.parts?.[0]?.text ||
+            "No summary returned.";
 
         summaryContainer.innerHTML =
             marked.parse(summary);
 
     } catch (error) {
 
+        console.error(error);
+
         summaryContainer.innerHTML =
-            `<span class="text-red-600">
-                ${error.message}
-            </span>`;
+            `<div class="text-red-600">${error.message}</div>`;
     }
 }
         async function sendMessage() {
@@ -427,7 +466,7 @@ Use bullet points.
 
             try {
                 // Using gemini-3.1-flash-lite as requested in your previous setup
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+               const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
                 
                 // We use system_instruction to load the massive spreadsheet CSV securely out of the visual chat history
                 const payload = {
@@ -437,11 +476,26 @@ Use bullet points.
                         Spreadsheet Data:
                         ${parsedCSVData}
                         
-                        Rules:
-                        1. Provide clear, concise financial answers.
-                        2. If asked to summarize, use Markdown tables.
-                        3. If a column or specific data isn't in the CSV, clearly state that the data doesn't exist. 
-                        4. Format monetary values nicely (e.g., $1,000.00).` }]
+Rules:
+
+1. Act as an experienced Post-Award Research Administrator.
+2. Analyze expenditures, trends, balances and anomalies.
+3. Use markdown formatting.
+4. Use markdown tables whenever possible.
+5. Highlight high-dollar transactions.
+6. Identify unusual spending patterns.
+7. Point out possible compliance concerns.
+8. Summarize spending by category.
+9. Format all currency as USD.
+10. If requested information does not exist, clearly state that.
+11. Provide recommendations when appropriate.
+12. When useful provide:
+   • Total spend
+   • Spending by category
+   • Largest transactions
+   • Budget health assessment
+   • Risk analysis
+   • Recommended actions` }]
                     },
                     contents: chatHistory,
                     generationConfig: {
@@ -455,11 +509,17 @@ Use bullet points.
                     body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
+const data = await response.json();
 
-                if (!response.ok) {
-                    throw new Error(data.error?.message || "Failed to communicate with the Gemini API.");
-                }
+console.log("Chat Response:", data);
+
+if (!response.ok) {
+    throw new Error(
+        data.error?.message ||
+        JSON.stringify(data) ||
+        "Failed to communicate with Gemini."
+    );
+}
 
                 const aiText = data.candidates[0].content.parts[0].text;
                 
